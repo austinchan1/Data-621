@@ -1,0 +1,135 @@
+---
+title: "Homework 3"
+author: "Austin Chan"
+date: "3/24/2020"
+output: html_document
+---
+
+```{r}
+library(MASS)
+library(caret)
+```
+
+
+
+```{r}
+raw = read.csv(".//crime-training-data_modified.csv", stringsAsFactors = F)
+
+scaled_data = data.frame(scale(raw[,!names(raw) %in% c("target","chas")]))
+
+scaled_data$chas = raw$chas
+scaled_data$target = as.factor(raw$target)
+```
+
+
+
+```{r}
+hist(scaled_data$zn)
+
+hist(scaled_data$indus)
+
+hist(scaled_data$chas)
+
+hist(scaled_data$nox)
+
+hist(scaled_data$rm)
+
+hist(scaled_data$age)
+
+hist(scaled_data$dis)
+
+hist(scaled_data$rad)
+
+hist(scaled_data$tax)
+
+hist(scaled_data$ptratio)
+
+hist(scaled_data$lstat)
+
+hist(scaled_data$medv)
+```
+
+```{r}
+set.seed(100)
+
+scaled_index = createDataPartition(scaled_data$target, p = 0.8, list = F)
+
+scaled_train = scaled_data[scaled_index,]
+scaled_test = scaled_data[-scaled_index,]
+```
+
+
+```{r}
+base_model = glm(target~.,data = scaled_train, family = binomial)
+
+summary(base_model)
+```
+
+```{r}
+stepAIC_model = stepAIC(base_model, direction = "both")
+
+summary(stepAIC_model)
+```
+
+
+```{r}
+caret_model = train(
+  form = target~.,
+  data = scaled_train,
+  trControl = trainControl(method = "cv", number = 5),
+  method = "glm",
+  family = "binomial"
+)
+```
+
+```{r}
+caret_model
+```
+
+```{r}
+summary(stepAIC_model)
+
+summary(caret_model)
+```
+
+```{r}
+caret_results = predict(caret_model, newdata = scaled_test, type = "prob")
+
+step_aic_results = predict.glm(stepAIC_model, newdata = scaled_test, type = "response")
+```
+
+```{r}
+caret_results$predictions = 0
+caret_results$predictions[caret_results$`1` >= 0.5] = 1
+caret_results$predictions = as.factor(caret_results$predictions)
+
+caret_results
+
+step_aic_results_df = data.frame(probs = step_aic_results)
+step_aic_results_df$predictions = 0
+step_aic_results_df$predictions[step_aic_results_df$probs >= 0.5] = 1
+step_aic_results_df$predictions = as.factor(step_aic_results_df$predictions)
+
+step_aic_results_df
+```
+
+```{r}
+caret::confusionMatrix(caret_results$predictions,scaled_test$target, positive = "1")
+```
+
+```{r}
+caret::confusionMatrix(step_aic_results_df$predictions,scaled_test$target, positive = "1")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
