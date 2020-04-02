@@ -8,6 +8,7 @@ output: html_document
 ```{r}
 library(MASS)
 library(caret)
+library(glmnet)
 ```
 
 
@@ -87,15 +88,32 @@ caret_model
 ```
 
 ```{r}
+glm_net = train(
+  target ~ . ^ 2, data = scaled_train,
+  method = "glmnet",
+  trControl = trainControl(method = "cv", number = 5),
+  tuneLength = 10
+)
+```
+
+
+```{r}
 summary(stepAIC_model)
 
 summary(caret_model)
 ```
 
 ```{r}
+coef(glm_net$finalModel,glm_net$bestTune$lambda)
+```
+
+
+```{r}
 caret_results = predict(caret_model, newdata = scaled_test, type = "prob")
 
 step_aic_results = predict.glm(stepAIC_model, newdata = scaled_test, type = "response")
+
+glm_net_results = predict(glm_net, newdata = scaled_test, type = "prob")
 ```
 
 ```{r}
@@ -111,6 +129,12 @@ step_aic_results_df$predictions[step_aic_results_df$probs >= 0.5] = 1
 step_aic_results_df$predictions = as.factor(step_aic_results_df$predictions)
 
 step_aic_results_df
+
+glm_net_results$predictions = 0
+glm_net_results$predictions[glm_net_results$`1` >= 0.5] = 1
+glm_net_results$predictions = as.factor(glm_net_results$predictions)
+
+glm_net_results
 ```
 
 ```{r}
@@ -121,6 +145,9 @@ caret::confusionMatrix(caret_results$predictions,scaled_test$target, positive = 
 caret::confusionMatrix(step_aic_results_df$predictions,scaled_test$target, positive = "1")
 ```
 
+```{r}
+caret::confusionMatrix(glm_net_results$predictions,scaled_test$target, positive = "1")
+```
 
 
 
