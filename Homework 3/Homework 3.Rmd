@@ -152,6 +152,78 @@ caret::confusionMatrix(glm_net_results$predictions,scaled_test$target, positive 
 
 
 
+******Jose's Model******
+```{r}
+library(caret) #Marchine and glm library
+library(magrittr)
+library(e1071)
+library(pROC)
+```
+
+```{r}
+t_data <- "https://raw.githubusercontent.com/JMawyin/MSDS2020-621/master/crime-training-data_modified.csv"
+e_data <- "https://raw.githubusercontent.com/JMawyin/MSDS2020-621/master/crime-evaluation-data_modified.csv"
+
+HW3_training <- read.csv(t_data, header = TRUE)
+HW3_evaluation <- read.csv(e_data, header = TRUE)
+```
+
+```{r}
+head(raw)
+HW3_training <- raw
+```
+
+```{r}
+outcomeName <- 'target'
+predictorsNames <- names(HW3_training)[names(HW3_training) != outcomeName]
+predictorsNames
+```
+
+```{r}
+HW3_training$target2 <- ifelse(HW3_training$target==1,'yes','nope')
+table(HW3_training$target2)
+HW3_training$target2 <- as.factor(HW3_training$target2)
+table(HW3_training$target2)
+outcomeName <- 'target2'
+outcomeName
+```
+
+```{r}
+outcomeName <- 'target2'
+HW3_training$target <- as.numeric(HW3_training$target)
+set.seed(1234)
+splitIndex <- createDataPartition(HW3_training[,outcomeName], p = .75, list = FALSE, times = 1)
+trainDF <- HW3_training[ splitIndex,]
+testDF  <- HW3_training[-splitIndex,]
+```
+
+```{r}
+head(trainDF)
+head(testDF)
+predictorsNames
+outcomeName
+```
+```{r}
+objControl <- trainControl(method='cv', number=3, returnResamp='none', summaryFunction = twoClassSummary, classProbs = TRUE)
+```
+
+```{r}
+outcomeName <- 'target2'
+objModel_Jose <- train(trainDF[,predictorsNames], trainDF[,outcomeName], 
+                  method='gbm', 
+                  trControl=objControl,  
+                  metric = "ROC",
+                  preProc = c("center", "scale"))
+```
+
+```{r}
+summary(objModel_Jose)
+```
+
+```{r}
+predictions_Jose <- predict(object=objModel_Jose, HW3_evaluation[,predictorsNames], type='prob')
+head(predictions_Jose)
+```
 
 
 
