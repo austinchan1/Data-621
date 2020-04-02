@@ -216,13 +216,29 @@ objModel_Jose <- train(trainDF[,predictorsNames], trainDF[,outcomeName],
                   preProc = c("center", "scale"))
 ```
 
+Testing the model with the test subset of the original training dataset
+
 ```{r}
-summary(objModel_Jose)
+predictions <- predict(object=objModel, testDF[,predictorsNames], type='raw')
+head(predictions)
 ```
 
 ```{r}
+print(postResample(pred=predictions, obs=as.factor(testDF[,outcomeName])))
+```
+
+
+We use the trained model to predict the target label in the evaluation dataset.
+```{r}
 predictions_Jose <- predict(object=objModel_Jose, HW3_evaluation[,predictorsNames], type='prob')
 head(predictions_Jose)
+```
+
+Finally we set the target to the binary options 1 or 0 based on the probabilities calculated from the previous prediction.
+```{r}
+HW3_evaluation$target <- ifelse(predictions_Jose$yes>0.5,1,0)
+head(HW3_evaluation)
+```
 ```
 
 
