@@ -239,7 +239,7 @@ Finally we set the target to the binary options 1 or 0 based on the probabilitie
 HW3_evaluation$target <- ifelse(predictions_Jose$yes>0.5,1,0)
 head(HW3_evaluation)
 ```
-```
+
 
 
 
