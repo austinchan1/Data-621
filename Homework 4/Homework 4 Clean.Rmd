@@ -1,0 +1,194 @@
+---
+title: "Homework 4 Clean"
+author: "Austin Chan"
+date: "4/25/2020"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(caret)
+library(pROC)
+library(mice)
+library(glmnet)
+library(MLmetrics)
+library(xgboost)
+```
+
+
+```{r}
+#function to convert dollar values into numeric
+
+convert_dollar = function(dollar){
+  
+  nocomma = gsub(",", "", dollar)
+  nodollar = gsub("\\$","",nocomma)
+  output = as.numeric(nodollar)
+  
+  return(output)
+}
+```
+
+
+```{r}
+training_data <- read.csv("insurance_training_data.csv", header = TRUE, stringsAsFactors = T)
+
+#clean data
+training_data <- training_data %>% mutate(
+    TARGET_AMT = as.integer(TARGET_AMT),
+    TARGET_FLAG = as.factor(TARGET_FLAG),
+    REVOKED = as.factor(REVOKED),
+    INCOME = convert_dollar(INCOME),
+    HOME_VAL = convert_dollar(HOME_VAL),
+    BLUEBOOK = convert_dollar(BLUEBOOK),
+    OLDCLAIM = convert_dollar(OLDCLAIM),
+    MSTATUS = as.factor(str_remove(MSTATUS, "^z_")),
+    SEX = as.factor(str_remove(SEX, "^z_")),
+    EDUCATION = as.factor(str_remove(str_remove(EDUCATION, "^z_"), "<")),
+    JOB = as.character(str_remove(JOB, "^z_")),
+    CAR_TYPE = as.factor(str_remove(CAR_TYPE, "^z_")),
+    URBANICITY = as.factor(str_remove(URBANICITY, "^z_")))
+
+training_data_numeric = data.frame(scale(training_data[,names(training_data) %in% c("AGE","HOMEKIDS","YOJ","INCOME","HOME_VAL","TRAVTIME","BLUEBOOK","TIF","OLDCLAIM","CLM_FREQ","MVR_PTS","CAR_AGE")]))
+
+
+training_data_categorical = training_data[,!names(training_data) %in% c("AGE","HOMEKIDS","YOJ","INCOME","HOME_VAL","TRAVTIME","BLUEBOOK","TIF","OLDCLAIM","CLM_FREQ","MVR_PTS","CAR_AGE")]
+
+training_data = cbind(training_data_categorical,training_data_numeric)
+
+#replace empty string with "No Job"
+training_data$JOB[training_data$JOB == ""] = "No Job"
+training_data$JOB = as.factor(training_data$JOB)
+```
+
+```{r}
+#mice
+init = mice(training_data) 
+meth = init$method
+predM = init$predictorMatrix
+
+set.seed(100)
+imputed = mice(training_data, method=meth, predictorMatrix=predM, m=5)
+imputed <- complete(imputed)
+imputed_data <- imputed[,c(2:26)]
+```
+
+```{r}
+#split data into train and test
+set.seed(100)
+
+scaled_index = createDataPartition(imputed_data$TARGET_FLAG, p = 0.8, list = F)
+
+train = imputed_data[scaled_index,]
+test = imputed_data[-scaled_index,]
+```
+
+```{r}
+#split predictor variables from response variables
+target_amt_train = train[,2:ncol(train)]
+target_amt_test = test[,2:ncol(test)]
+
+target_flag_train = train[,c(1,3:ncol(train))]
+target_flag_test = test[,c(1,3:ncol(test))]
+
+train_nonzeros = target_amt_train[target_amt_train$TARGET_AMT != 0,]
+train_nonzeros$TARGET_AMT = log(train_nonzeros$TARGET_AMT + 1)
+```
+
+```{r}
+#train elastic net logistic regression model
+set.seed(100)
+
+glm_net_binary = train(
+  TARGET_FLAG ~ ., data = target_flag_train,
+  method = "glmnet",
+  trControl = trainControl(method = "cv", number = 5),
+  tuneGrid = expand.grid(alpha = seq(0.1,0.5,0.01), lambda = seq(0,0.01,0.001))
+)
+```
+
+```{r}
+#train elastic net linear regression model
+set.seed(100)
+
+glm_net_regression = train(
+  TARGET_AMT ~ ., data = train_nonzeros,
+  method = "glmnet",
+  trControl = trainControl(method = "cv", number = 5),
+  tuneLength = 50
+)
+```
+
+```{r}
+#make predictions
+glm_net_results = predict(glm_net_binary, newdata = target_flag_test, type = "prob")
+glm_net_reg_predict = predict(glm_net_regression, newdata = target_amt_test)
+glm_net_reg_results = exp(glm_net_reg_predict) - 1
+```
+
+
+```{r}
+#clean up predictions formatting
+glm_net_results$predictions = 0
+glm_net_results$predictions[glm_net_results$`1` >= 0.5] = 1
+glm_net_results$predictions = as.factor(glm_net_results$predictions)
+
+glm_net_results$amt_prediction = glm_net_reg_results
+
+glm_net_results$amt_prediction[glm_net_results$predictions == "0"] = 0
+```
+
+```{r}
+#find coefficient values for final model
+coef_values = coef(glm_net_binary$finalModel,glm_net_binary$bestTune$lambda)
+
+glm_net_variable_importance = data.frame(Coefficients = rownames(coef_values), Values = abs(coef_values[,1]), row.names = NULL, stringsAsFactors = F)
+
+glm_var_sorted = glm_net_variable_importance[order(glm_net_variable_importance$Values, decreasing = T),]
+
+top10 = head(glm_var_sorted, 10)
+
+coef_values
+```
+
+```{r}
+#relative importance graph
+rotate_x <- function(data, column_to_plot, labels_vec, rot_angle) {
+    plt <- barplot(data[[column_to_plot]], col='steelblue', xaxt="n", main = "Relative Importance", ylab = "Coefficient Value")
+    text(plt, par("usr")[3], labels = labels_vec, srt = rot_angle, adj = c(1.1,1.1), xpd = TRUE, cex=0.6) 
+}
+
+rotate_x(top10, "Values", top10$Coefficients, 90)
+```
+
+
+```{r}
+#confusion matrix of final model
+caret::confusionMatrix(glm_net_results$predictions,target_flag_test$TARGET_FLAG, positive = "1")
+```
+
+```{r}
+#roc curve
+roc_output = roc(target_flag_test$TARGET_FLAG,glm_net_results$`1`)
+
+plot(roc_output, print.thres = "best", print.auc = T, xlim = c(1,0), col = "red", main = "ROC Curve")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
