@@ -1,0 +1,436 @@
+---
+title: "621_Final_Project"
+author: "Jose Mawyin"
+date: "5/6/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 621_Final_Project
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+library(psych)
+library(dplyr)
+library(caret) #Marchine and glm library
+library(RcmdrMisc) #recorr.adjust
+library(Amelia) #missmap
+```
+
+## 
+
+
+SEQN - Respondent sequence number
+DPQ010 - Have little interest in doing things
+DPQ020 - Feeling down, depressed, or hopeless
+DPQ030 - Trouble sleeping or sleeping too much
+DPQ040 - Feeling tired or having little energy
+DPQ050 - Poor appetite or overeating
+DPQ060 - Feeling bad about yourself
+DPQ070 - Trouble concentrating on things
+DPQ080 - Moving or speaking slowly or too fast
+DPQ090 - Thought you would be better off dead
+DPQ100 - Difficulty these problems have caused
+
+HSD010 - General health condition
+HSQ500 - SP have head cold or chest cold
+HSQ510 - SP have stomach or intestinal illness?
+HSQ520 - SP have flu, pneumonia, ear infection?
+HSQ571 - SP donated blood in past 12 months?
+HSQ580 - How long ago was last blood donation?
+HSQ590 - Blood ever tested for HIV virus?
+HSAQUEX - Source of Health Status Data
+
+OCD150 - Type of work done last week
+OCQ180 - Hours worked last week at all jobs
+OCQ210 - Usually work 35 or more hours per week
+OCQ260 - Description of job/work situation
+OCD270 - Number of months working in the main job
+OCQ670 - Overall work schedule past 3 months
+OCQ380 - Main reason did not work last week
+OCD390G - Kind of work you have done the longest
+OCD395 - Duration of longest job (months)
+
+SLQ300 - Usual sleep time on weekdays or workdays
+SLQ310 - Usual wake time on weekdays or workdays
+SLD012 - Sleep hours - weekdays or workdays
+SLQ320 - Usual sleep time on weekends
+SLQ330 - Usual wake time on weekends
+SLD013 - Sleep hours - weekends
+SLQ030 - How often do you snore?
+SLQ040 - How often do you snort or stop breathing
+SLQ050 - Ever told doctor had trouble sleeping?
+SLQ120 - How often feel overly sleepy during day?
+
+SMQ020 - Smoked at least 100 cigarettes in life
+SMD030 - Age started smoking cigarettes regularly
+SMQ040 - Do you now smoke cigarettes?
+SMQ050Q - How long since quit smoking cigarettes
+SMQ050U - Unit of measure (day/week/month/year)
+SMD057 - # cigarettes smoked per day when quit
+SMQ078 - How soon after waking do you smoke
+SMD641 - # days smoked cigs during past 30 days
+SMD650 - Avg # cigarettes/day during past 30 days
+SMD093 - May I please see the pack of cigarettes
+SMDUPCA - Cig 12-digit Universal Product Code-UPC
+SMD100BR - Cigarette Brand/sub-brand
+SMD100FL - Cigarette Filter type
+SMD100MN - Cigarette Menthol indicator
+SMD100LN - Cigarette Length
+SMD100TR - FTC Tar Content
+SMD100NI - FTC Nicotine Content
+SMD100CO - FTC Carbon Monoxide Content
+SMQ621 - Cigarettes smoked in entire life
+SMD630 - Age first smoked whole cigarette
+SMQ661 - Brand of cigarettes smoked past 30 days
+SMQ665A - Marlboro variety
+SMQ665B - Camel variety
+SMQ665C - Newport variety
+SMQ665D - Other brand
+SMQ670 - Tried to quit smoking
+SMQ848 - # times stopped smoking cigarettes
+SMQ852Q - How long were you able to stop smoking
+SMQ852U - Unit of measure (day/week/month/year)
+SMQ890 - Ever smoked a cigar even 1 time?
+SMQ895 - How many days smoked a cigar?
+SMQ900 - Ever used an e-cigarette?
+SMQ905 - How many days used an e-cigarette?
+SMQ910 - Ever used smokeless tobacco?
+SMQ915 - How many days used smokeless tobacco?
+SMAQUEX2 - Questionnaire Mode Flag
+
+```{r}
+df_loc <- "https://raw.githubusercontent.com/myvioletrose/data_621_final_project/master/data/df.csv"
+df <- read.csv(df_loc, header = TRUE)
+dim(df)
+head(df)
+```
+
+```{r}
+cat("Counting na's per column\n")
+sapply(df, function(x) sum(is.na(x)))
+cat("% number of rows that have complete observations (no na's in the whole row)\n")
+100*sum(complete.cases(df))/nrow(df)
+```
+
+```{r}
+cat("Showing the class type for all the columns in the dataset.\n")
+sapply(df, class)
+```
+
+```{r}
+describe(df)
+```
+
+```{r}
+df$Dep_Sum <- apply(df[,c(2:10)], 1, sum)
+str(df$Dep_Sum)
+```
+
+```{r}
+df.filtered <- df[apply(df[,2:10], 1, function(x) all(x < 4)),] #Filtering Out Values Greater than 3
+head(df.filtered)
+table(df.filtered$dpq010)
+```
+
+```{r}
+table(df.filtered$Dep_Sum)
+prop.table(table(df.filtered$Dep_Sum))
+```
+
+```{r}
+class(df.filtered$Dep_Sum)
+```
+
+
+Number of People with no indicators of depression.
+
+```{r}
+100*nrow(df.filtered[df.filtered$Dep_Sum == 0,])/nrow(df.filtered)
+```
+
+Addding a new column to discrimate between indicators of depression or no with lables "1" and "0"
+```{r}
+df.filtered$Dep_label <- ifelse(df.filtered$Dep_Sum == 0,0,1) 
+table(df.filtered$Dep_label)
+```
+
+```{r}
+head(df.filtered)
+```
+
+```{r}
+df.filtered$
+describe(df.filtered)
+cat("Showing the class type for all the columns in the dataset.\n")
+sapply(df.filtered, class)
+
+```
+
+```{r}
+dim(df.filtered)
+df.filtered.no.NA <- df.filtered[complete.cases(df.filtered), ]
+dim(df.filtered.no.NA)
+100*nrow(df.filtered.no.NA)/nrow(df.filtered)
+x <- df.filtered.no.NA
+impute.mean <- function(x) replace(x, is.na(x) | is.nan(x) | is.infinite(x), mean(x[!is.na(x) & !is.nan(x) & !is.infinite(x)]))
+df.filtered.no.NAv2 <- apply(df.filtered.no.NA, 2, impute.mean)
+dim(df.filtered.no.NAv2)
+```
+
+```{r}
+missmap(df.filtered.no.NA, col=c("red", "black"), legend=FALSE)
+```
+
+Logistic Regression on Depression Y/N
+```{r}
+cols.dont.want <- c("seqn", "dpq010","dpq020", "dpq030","dpq040", "dpq050", "dpq060", "dpq070", "dpq080", "dpq090", "Dep_Sum") # if you want to remove multiple columns
+df.for.logreg <- df.filtered.no.NA[, ! names(df.filtered.no.NA) %in% cols.dont.want, drop = F]
+#df.for.logreg$Dep_label <- ifelse(df.for.logreg$Dep_label==1,'yes','nope')
+df.for.logreg$Dep_label <-as.factor(df.for.logreg$Dep_label)
+
+sapply(df.for.logreg, class)
+```
+#Resizing Values on Columns
+```{r}
+#Filtering out Current Health Status (HSQ_J)
+df.for.logregv2 <- df.for.logreg[apply(df.for.logreg[,2:5], 1, function(x) all(x < 3)),] #Filtering Out Values Greater than 3
+df.for.logregv2 <- df.for.logregv2[df.for.logregv2$hsd010 < 6,]
+
+#Filtering out Occupation (OCQ_J)
+df.for.logregv2 <- df.for.logregv2[df.for.logregv2$ocd150 < 5,]
+
+#Filtering out Sleep Disorders (SLQ_J)
+df.for.logregv2 <- df.for.logregv2[df.for.logregv2$slq030 < 4,]
+
+#Filtering out Smoking - Cigarette Use (SMQ_J)
+df.for.logregv2 <- df.for.logregv2[df.for.logregv2$smq020 < 3,]
+
+table(df.for.logregv2$smq020)
+100*nrow(df.for.logregv2)/nrow(df.filtered)
+```
+
+
+```{r}
+#rcorr.adjust(df.for.logreg[,c("Dep_label", "hsd010", "hsq500", "hsq510", "hsq520", "hsq571")])
+rcorr.adjust(df.for.logregv2[,c("Dep_label","hsd010", "hsq500", "hsq510", "hsq520", "hsq571", "ocd150" ,"sld012", "sld013", "slq030","smq020")])
+```
+
+
+```{r}
+
+splitIndex <- createDataPartition(df.for.logreg$Dep_label, p = .7, list = FALSE, times = 1)
+#training.4$TARGET_FLAG <- training.3$TARGET_FLAG
+train.df.for.logreg <- df.for.logreg[ splitIndex,]
+test.df.for.logreg  <- df.for.logreg[-splitIndex,]
+```
+
+```{r}
+set.seed(1234)
+train.logit.1 <- test.df.for.logreg
+ 
+#train.logit.1$Dep_label <-as.factor(test.df.for.logreg$Dep_label)
+# Set up a 10-fold cross validation
+tc <- trainControl(method = "cv", number = 10, classProbs=T)
+# Include the setup in your model
+lg1_cv <- train(form = Dep_label ~ ., data = train.logit.1, 
+                #method = "binomial",
+                method="glm", family="binomial",
+             trControl = tc) # here
+lg1_cv
+summary(lg1_cv)
+```
+
+```{r}
+gbmImp <- varImp(lg1_cv, scale = FALSE)
+gbmImp
+```
+
+
+===============
+# Logit with Smaller Set of Variables
+
+```{r}
+#sapply(df.for.logregv2, class)
+cols.want <- c("Dep_label","hsd010", "hsq500", "hsq510", "hsq520", "hsq571", "ocd150" ,"sld012", "sld013", "slq030","smq020") # if you want to remove multiple columns
+df.for.logreg_reduced <- df.for.logregv2[, names(df.for.logregv2) %in% cols.want, drop = F]
+df.for.logreg_reduced$Dep_label <- ifelse(df.for.logreg_reduced$Dep_label==1,'yes','nope')
+df.for.logreg_reduced$Dep_label <- as.factor(df.for.logreg_reduced$Dep_label)
+sapply(df.for.logreg_reduced, class)
+
+#Creating Training/Test Set
+splitIndex <- createDataPartition(df.for.logreg_reduced$Dep_label, p = .7, list = FALSE, times = 1)
+#training.4$TARGET_FLAG <- training.3$TARGET_FLAG
+train.df.for.logreg_red <- df.for.logreg_reduced[ splitIndex,]
+test.df.for.logreg_red  <- df.for.logreg_reduced[-splitIndex,]
+```
+
+Number of People with no indicators of depression.
+
+```{r}
+100*nrow(df.for.logreg_reduced[df.for.logreg_reduced$Dep_label == "nope",])/nrow(df.for.logreg_reduced)
+```
+
+# Using All Reduced Predictors
+```{r}
+set.seed(1234)
+train.logit.2 <- train.df.for.logreg_red
+ 
+#train.logit.1$Dep_label <-as.factor(test.df.for.logreg$Dep_label)
+# Set up a 10-fold cross validation
+tc <- trainControl(method = "cv", number = 10, classProbs=T)
+# Include the setup in your model
+lg2_cv <- train(form = Dep_label ~ ., data = train.logit.2, 
+                #method = "binomial",
+                method="glm", family="binomial",
+             trControl = tc) # here
+lg2_cv
+summary(lg2_cv)
+varImp(lg2_cv, scale = FALSE)
+```
+
+# Using All Reduced Predictors and Interaction Paramters
+```{r}
+set.seed(1234)
+train.logit.3 <- train.df.for.logreg_red
+ 
+#train.logit.1$Dep_label <-as.factor(test.df.for.logreg$Dep_label)
+# Set up a 10-fold cross validation
+tc <- trainControl(method = "cv", number = 10, classProbs=T)
+# Include the setup in your model
+lg3_cv <- train(form = Dep_label ~ 
+                  (hsd010 + hsq500 + hsq510 + hsq520 + hsq571 + ocd150 + sld012 + sld013 + slq030 + smq020)^2, 
+                data = train.logit.3, 
+                #method = "binomial",
+                method="glm", family="binomial",
+             trControl = tc) # here
+lg3_cv
+summary(lg3_cv)
+varImp(lg3_cv, scale = FALSE)
+```
+
+
+# Transforming Predictors to Factors
+
+```{r}
+sapply(df.for.logreg_reduced, class)
+```
+
+```{r}
+df_as.factor <- df.for.logreg_reduced
+df_as.factor$hsd010 <- as.factor(df_as.factor$hsd010)
+df_as.factor$hsq500 <- as.factor(df_as.factor$hsq500)
+df_as.factor$hsq510 <- as.factor(df_as.factor$hsq510)
+df_as.factor$hsq520 <- as.factor(df_as.factor$hsq520)
+df_as.factor$hsq571 <- as.factor(df_as.factor$hsq571)
+
+df_as.factor$ocd150 <- as.factor(df_as.factor$ocd150)
+
+df_as.factor$slq030 <- as.factor(df_as.factor$slq030)
+
+df_as.factor$smq020 <- as.factor(df_as.factor$smq020)
+
+sapply(df_as.factor, class)
+str(df_as.factor)
+#Creating Training/Test Set
+splitIndex <- createDataPartition(df_as.factor$Dep_label, p = .7, list = FALSE, times = 1)
+#training.4$TARGET_FLAG <- training.3$TARGET_FLAG
+train.df_as.factor <- df_as.factor[ splitIndex,]
+test.df_as.factor  <- df_as.factor[-splitIndex,]
+```
+
+```{r}
+set.seed(1234)
+train.logit.4 <- train.df_as.factor
+ 
+#train.logit.1$Dep_label <-as.factor(test.df.for.logreg$Dep_label)
+# Set up a 10-fold cross validation
+tc <- trainControl(method = "cv", number = 10, classProbs=T)
+# Include the setup in your model
+lg4_cv <- train(form = Dep_label ~ ., data = train.logit.4, 
+                #method = "binomial",
+                method="glm", family="binomial", metric = "Accuracy",
+             trControl = tc) # here
+lg4_cv
+summary(lg4_cv)
+varImp(lg4_cv, scale = FALSE)
+plot(varImp(lg4_cv))
+```
+
+```{r}
+test.logit.4 <- test.df_as.factor
+#test.df.lm$TARGET_FLAG <-as.numeric(test.df_num$TARGET_FLAG)
+predlog4 = predict(lg4_cv, newdata=test.logit.4)
+head(predlog4)
+confusionMatrix(data=predlog4, test.logit.4$Dep_label)
+```
+
+# Using All Reduced Predictors, Factors and Interaction Paramters
+```{r}
+set.seed(1234)
+train.logit.5 <- train.df_as.factor
+ 
+#train.logit.1$Dep_label <-as.factor(test.df.for.logreg$Dep_label)
+# Set up a 10-fold cross validation
+tc <- trainControl(method = "cv", number = 10, classProbs=T)
+# Include the setup in your model
+lg5_cv <- train(form = Dep_label ~ 
+                  (hsd010 + hsq500 + hsq510 + hsq520 + hsq571 + ocd150 + sld012 + sld013 + slq030 + smq020)^2, 
+                data = train.logit.5, 
+                #method = "binomial",
+                method="glm", family="binomial",
+             trControl = tc) # here
+lg5_cv
+summary(lg5_cv)
+ImpVariables5 <- varImp(lg5_cv, scale = FALSE)
+ImpVariables5
+plot(varImp(lg5_cv))
+```
+
+#Parameters
+
+hsd0102      0.5326858  0.1386995   3.841 0.000123 ***
+hsd0103      0.8186117  0.1324898   6.179 6.46e-10 ***
+hsd0104      1.5997623  0.1573878  10.164  < 2e-16 ***
+hsd0105      3.8782062  0.7272327   5.333 9.67e-08 ***
+hsq5002     -0.4320300  0.1178240  -3.667 0.000246 ***
+hsq5102     -1.0627806  0.1989147  -5.343 9.15e-08 ***
+hsq5202     -0.1897752  0.2322343  -0.817 0.413831    
+hsq5712     -0.3845820  0.2010952  -1.912 0.055820 .  
+ocd1502     -0.0991283  0.2571580  -0.385 0.699885    
+ocd1503      0.5663047  0.2036985   2.780 0.005434 ** 
+ocd1504      0.1419734  0.0858434   1.654 0.098155 .  
+
+
+
+
+HSD010 - General health condition
+Code or Value	Value Description	Count	Cumulative
+1	Excellent	619	619	
+2	Very good,	1544	2163	
+3	Good,	2454	4617	
+4	Fair, or	1175	5792	
+5	Poor?	172	5964
+
+HSQ500 - SP have head cold or chest cold
+Code or Value	Value Description	Count	Cumulative
+1	Yes	1328	1328	
+2	No	6163	7491
+
+HSQ510 - SP have stomach or intestinal illness?
+Code or Value	Value Description	Count	Cumulative	Skip to Item
+1	Yes	599	599	
+2	No	6913	7512	
+
+OCD150 - Type of work done last week
+Code or Value	Value Description	Count	Cumulative	Skip to Item
+1	Working at a job or business,	3141	3141	OCQ180
+2	With a job or business but not at work,	122	3263	OCQ210
+3	Looking for work, or	271	3534	OCD390G
+4	Not working at a job or business?	2625	6159	OCQ380
